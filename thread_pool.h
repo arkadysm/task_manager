@@ -4,13 +4,14 @@
 #include <atomic>
 #include <vector>
 #include <thread>
+#include <deque>
 
 class thread_pool
 {
 public:
     thread_pool(unsigned threadCount) {
-        while (threadCount--) {
-            threads.emplace_back(&thread_pool::workerThread, this);
+        for (unsigned i = 0; i < threadCount; ++i) {
+            threads.emplace_back(&thread_pool::operationThread, this);
         }
     }
 
@@ -21,14 +22,43 @@ public:
         }
     }
 
+    template<typename Callable>
+    void submit(Callable&& callable)
+    {
+        threadsafeEnqueueOperation(std::forward<Callable>(callable));
+    }
+
 private:
-    void workerThread() {
+    void operationThread() {
         while (!done) {
-            std::this_thread::yield();
+            std::function<void()> operation = threadsafeDequeueOperation();
+            if (operation) {
+                operation();
+            }
+            else {
+                std::this_thread::yield();
+            }
         }
     }
 
+    void threadsafeEnqueueOperation(std::function<void()> operation) {
+        std::lock_guard<std::mutex> locked(queueMutex);
+        operationQueue.emplace_back(operation);
+    }
+
+    std::function<void()> threadsafeDequeueOperation() {
+        std::function<void()> operation;
+        std::lock_guard<std::mutex> locked(queueMutex);
+        if (!operationQueue.empty()) {
+            operation = std::move(operationQueue.front());
+            operationQueue.pop_front();
+        }
+        return operation;
+    }
+
     std::atomic<bool> done{false};
+    std::mutex queueMutex;
+    std::deque<std::function<void()>> operationQueue;
     std::vector<std::thread> threads;
 
 }; // class thread_pool
