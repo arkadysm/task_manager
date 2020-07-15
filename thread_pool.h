@@ -1,10 +1,11 @@
-#ifndef TASK_MANAGER_THREAD_POOL
-#define TASK_MANAGER_THREAD_POOL
+#ifndef TASK_MANAGER_THREAD_POOL_H
+#define TASK_MANAGER_THREAD_POOL_H
 
 #include <atomic>
 #include <vector>
-#include <thread>
 #include <deque>
+#include <thread>
+#include <mutex>
 
 class thread_pool
 {
@@ -63,4 +64,4 @@ private:
 
 }; // class thread_pool
 
-#endif // TASK_MANAGER_THREAD_POOL
+#endif // TASK_MANAGER_THREAD_POOL_H
