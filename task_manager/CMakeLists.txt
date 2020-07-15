@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 
-project(task_manager LANGUAGES CXX)
+project(task_scheduler LANGUAGES CXX)
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_C_FLAGS "-arch x86_64 -std=c17")
@@ -12,4 +12,4 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/../bin")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/../bin")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/../lib")
 
-add_subdirectory(task_manager)
+add_executable(task_scheduler main.cpp)
