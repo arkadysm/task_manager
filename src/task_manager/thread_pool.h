@@ -1,6 +1,7 @@
 #ifndef TASK_MANAGER_THREAD_POOL_H
 #define TASK_MANAGER_THREAD_POOL_H
 
+#include "concurrent_queue.h"
 #include <atomic>
 #include <vector>
 #include <deque>
@@ -12,7 +13,7 @@ class thread_pool
 public:
     thread_pool(unsigned threadCount) {
         for (unsigned i = 0; i < threadCount; ++i) {
-            threads.emplace_back(&thread_pool::operationThread, this);
+            threads.emplace_back(&thread_pool::operation_thread, this);
         }
     }
 
@@ -26,13 +27,14 @@ public:
     template<typename Callable>
     void submit(Callable&& callable)
     {
-        threadsafeEnqueueOperation(std::forward<Callable>(callable));
+        operationQueue.push(std::forward<Callable>(callable));
     }
 
 private:
-    void operationThread() {
+    void operation_thread() {
         while (!done) {
-            std::function<void()> operation = threadsafeDequeueOperation();
+            std::function<void()> operation;
+            operationQueue.try_pop(operation);
             if (operation) {
                 operation();
             }
@@ -42,24 +44,8 @@ private:
         }
     }
 
-    void threadsafeEnqueueOperation(std::function<void()> operation) {
-        std::lock_guard<std::mutex> locked(queueMutex);
-        operationQueue.emplace_back(operation);
-    }
-
-    std::function<void()> threadsafeDequeueOperation() {
-        std::function<void()> operation;
-        std::lock_guard<std::mutex> locked(queueMutex);
-        if (!operationQueue.empty()) {
-            operation = std::move(operationQueue.front());
-            operationQueue.pop_front();
-        }
-        return operation;
-    }
-
     std::atomic<bool> done{false};
-    std::mutex queueMutex;
-    std::deque<std::function<void()>> operationQueue;
+    concurrent_queue<std::function<void()>> operationQueue;
     std::vector<std::thread> threads;
 
 }; // class thread_pool
