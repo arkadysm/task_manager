@@ -1,0 +1,22 @@
+cmake_minimum_required(VERSION 2.8.2)
+
+project(googletest-download NONE)
+
+include(ExternalProject)
+
+ExternalProject_Add(googletest
+    URL https://github.com/google/googletest/archive/release-1.10.0.tar.gz
+    SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/googletest-src"
+    BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/googletest-build"
+    CONFIGURE_COMMAND   ""
+    BUILD_COMMAND       ""
+    INSTALL_COMMAND     ""
+    TEST_COMMAND        ""
+    CMAKE_ARGS
+        -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
+        -DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}
+        -DCMAKE_BUILD_TYPE=Release
+        -DBUILD_GMOCK=0
+    DOWNLOAD_NO_PROGRESS TRUE
+    TIMEOUT 10
+)

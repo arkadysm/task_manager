@@ -1,0 +1,11 @@
+cmake_minimum_required(VERSION 3.15)
+
+project(task_manager_test LANGUAGES CXX)
+
+add_executable(thread_pool_test thread_pool_test.cpp)
+target_link_libraries(thread_pool_test task_manager gtest)
+add_test(NAME thread_pool_test COMMAND thread_pool_test)
+
+add_executable(topological_task_manager_test topological_task_manager_test.cpp)
+target_link_libraries(topological_task_manager_test task_manager gtest)
+add_test(NAME topological_task_manager_test COMMAND topological_task_manager_test)
