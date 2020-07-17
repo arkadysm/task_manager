@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 
-project(solution LANGUAGES NONE)
+project(task_manager_solution LANGUAGES NONE)
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_MACOSX_RPATH ON)
