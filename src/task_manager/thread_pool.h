@@ -8,34 +8,57 @@
 #include <thread>
 #include <mutex>
 
+class join_threads
+{
+public:
+    explicit join_threads(std::vector<std::thread>& thread_vector)
+    : threads(thread_vector) {
+    }
+
+    ~join_threads() {
+        for (auto& t : threads) {
+            if (t.joinable()) {
+                t.join();
+            }
+        }
+    }
+
+private:
+    std::vector<std::thread>& threads;
+
+}; // class join_threads
+
 class thread_pool
 {
 public:
-    thread_pool(unsigned threadCount) {
-        for (unsigned i = 0; i < threadCount; ++i) {
-            threads.emplace_back(&thread_pool::operation_thread, this);
+    thread_pool(unsigned thread_count)
+    : joiner(threads) {
+        try {
+            for (unsigned i = 0; i < thread_count; ++i) {
+                threads.emplace_back(&thread_pool::operation_thread, this);
+            }
+        }
+        catch (...) {
+            done = true;
+            throw;
         }
     }
 
     ~thread_pool() {
         done = true;
-        for (auto& t : threads) {
-            t.join();
-        }
     }
 
     template<typename Callable>
     void submit(Callable&& callable)
     {
-        operationQueue.push(std::forward<Callable>(callable));
+        opqueue.push(std::forward<Callable>(callable));
     }
 
 private:
     void operation_thread() {
         while (!done) {
             std::function<void()> operation;
-            operationQueue.try_pop(operation);
-            if (operation) {
+            if (opqueue.try_pop(operation)) {
                 operation();
             }
             else {
@@ -44,9 +67,11 @@ private:
         }
     }
 
+    // This order is significant
     std::atomic<bool> done{false};
-    concurrent_queue<std::function<void()>> operationQueue;
+    concurrent_queue<std::function<void()>> opqueue;
     std::vector<std::thread> threads;
+    join_threads joiner;
 
 }; // class thread_pool
 
