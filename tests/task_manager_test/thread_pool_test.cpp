@@ -1,18 +1,23 @@
 #include <gtest/gtest.h>
 #include <thread_pool.h>
-#include <utils.h>
-#include <iostream>
+#include <atomic>
+#include <thread>
 
 TEST(thread_pool_test, submitting_100_operations)
 {
-    thread_pool pool(std::thread::hardware_concurrency());
-    for (int i = 0; i < 100; ++i) {
-        pool.submit([]{
-            cout_lock{}, std::cout << "thread: " << std::this_thread::get_id() << std::endl;
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        });
+    // TODO: Add correct waiting for tasks completion
+    std::atomic<int> counter = 0;
+    {
+        thread_pool pool(std::thread::hardware_concurrency());
+        for (int i = 0; i < 100; ++i) {
+            pool.submit([&counter]{
+                ++counter;
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            });
+        }
+        std::this_thread::sleep_for(std::chrono::seconds(2));
     }
-    EXPECT_TRUE(true);
+    EXPECT_TRUE(counter == 100);
 }
 
 int main(int argc, char *argv[]) {
