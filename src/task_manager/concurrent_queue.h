@@ -10,7 +10,7 @@ class concurrent_queue
 {
 public:
     bool empty() const {
-        std::lock_quard<std::mutex> locked(queue_mutex);
+        std::lock_guard<std::mutex> locked(queue_mutex);
         return queue_core.empty();
     }
 
