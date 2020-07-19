@@ -2,6 +2,7 @@
 #define TASK_MANAGER_UTILS_H
 
 #include <mutex>
+#include <iostream>
 
 class cout_lock
 {
@@ -21,5 +22,13 @@ private:
     }
 
 }; // class cout_lock
+
+template<typename K, typename V>
+std::ostream& operator<<(std::ostream& os, const std::unordered_map<K,V>& kv) {
+    for (const auto& [k, v] : kv) {
+        os << k << " => " << v << '\n';
+    }
+    return os;
+}
 
 #endif // TASK_MANAGER_UTILS_H
