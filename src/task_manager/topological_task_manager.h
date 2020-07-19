@@ -23,11 +23,27 @@ public:
     void run_tasks() {
         // TODO: validate there is no cycle
 
-        // TODO: init execution graph by transposing the task graph
+        // Init execution graph by transposing the task graph
+        for (auto& [id, node] : task_graph) {
+            node.indegree = node.deps.size();
+            for (int dep_id : node.deps) {
+                execution_graph[dep_id].emplace_back(id);
+            }
+        }
+        total_remaining = task_graph.size();
 
-        // TODO: submit tasks with zero indegree
+        // Submit parallel tasks with zero indegree
+        std::unique_lock locked(state_mutex);
+        for (auto& [id, node] : task_graph) {
+            if (0 == node.indegree) {
+                submit_one_task(node);
+            }
+        }
 
-        // TODO: wait for completion of all tasks
+        // Wait for completion of all tasks
+        done_cond.wait(locked, [this] {
+            return 0 == total_remaining;
+        });
     }
 
 private:
@@ -47,11 +63,27 @@ private:
 
     void run_one_task(task_node& node) {
 
-        // TODO: invoke task function
+        node.task_function();
 
-        // TODO: update execution graph and submit dependent tasks with zero indegree
+        // Update execution graph and submit dependent tasks with zero indegree
+        std::unique_lock locked(state_mutex);
+        auto it = execution_graph.find(node.id);
+        if (it != execution_graph.end()) {
+            for (int dep_id : it->second) {
+                auto& dep_node = task_graph[dep_id];
+                if (0 == --dep_node.indegree) {
+                    submit_one_task(dep_node);
+                }
+            }
+        }
+        execution_graph.erase(node.id);
+        auto remaining = --total_remaining;
+        locked.unlock();
 
-        // TODO: notify if all tasks completed
+        // Notify if all tasks completed
+        if (0 == remaining) {
+            done_cond.notify_one();
+        }
     }
 
 private:
