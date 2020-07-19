@@ -111,6 +111,21 @@ TEST(topological_task_manager_test, run_parallel_both_ends_tasks)
                  result == std::vector{2,1,3,4,6,5}));
 }
 
+TEST(topological_task_manager_test, run_tasks_with_cycle)
+{
+    auto task_impl = [] { };
+
+    thread_pool pool(std::thread::hardware_concurrency());
+    topological_task_manager task_manager(pool);
+    task_manager.add_task(1, task_impl, {});
+    task_manager.add_task(2, task_impl, {1,5});
+    task_manager.add_task(3, task_impl, {2});
+    task_manager.add_task(4, task_impl, {3});
+    task_manager.add_task(5, task_impl, {4});
+    task_manager.add_task(6, task_impl, {5});
+    EXPECT_THROW(task_manager.run_tasks(), std::logic_error);
+}
+
 int main(int argc, char *argv[]) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

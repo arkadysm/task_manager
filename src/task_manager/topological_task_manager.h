@@ -5,6 +5,7 @@
 #include <vector>
 #include <unordered_map>
 #include <functional>
+#include <stdexcept>
 
 class topological_task_manager
 {
@@ -21,7 +22,9 @@ public:
     }
 
     void run_tasks() {
-        // TODO: validate there is no cycle
+
+        if (has_cycle())
+            throw std::logic_error("cycle detected");
 
         // Init execution graph by transposing the task graph
         for (auto& [id, node] : task_graph) {
@@ -84,6 +87,45 @@ private:
         if (0 == remaining) {
             done_cond.notify_one();
         }
+    }
+
+    bool has_cycle() const {
+
+        std::unordered_map<int, unsigned> indegree;
+
+        for (const auto& [id, node] : task_graph) {
+            indegree[id];
+            for (int dep_id : node.deps) {
+                ++indegree[dep_id];
+            }
+        }
+
+        std::vector<int> next;
+        next.reserve(task_graph.size());
+        for (const auto& [id, remaining] : indegree) {
+            if (0 == remaining) {
+                next.emplace_back(id);
+            }
+        }
+
+        unsigned total{0};
+        while (!next.empty()) {
+            const int id = next.back();
+            next.pop_back();
+
+            ++total;
+
+            const auto it = task_graph.find(id);
+            if (task_graph.end() != it) {
+                for (int dep_id : it->second.deps) {
+                    if (0 == --indegree[dep_id]) {
+                        next.emplace_back(dep_id);
+                    }
+                }
+            }
+        }
+
+        return total != task_graph.size();
     }
 
 private:
