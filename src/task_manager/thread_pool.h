@@ -31,7 +31,7 @@ private:
 class thread_pool
 {
 public:
-    thread_pool(unsigned thread_count)
+    explicit thread_pool(unsigned thread_count)
     : joiner(threads) {
         try {
             for (unsigned i = 0; i < thread_count; ++i) {
@@ -48,6 +48,11 @@ public:
         done = true;
         opqueue.shutdown();
     }
+
+    thread_pool(const thread_pool&) = delete;
+    thread_pool(thread_pool&&) = delete;
+    thread_pool& operator=(const thread_pool&) = delete;
+    thread_pool& operator=(thread_pool&&) = delete;
 
     template<typename Callable>
     void submit(Callable&& callable)

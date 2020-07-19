@@ -14,8 +14,11 @@ public:
     : execution_pool(pool) {
     }
     
-    ~topological_task_manager() {
-    }
+    ~topological_task_manager() = default;
+    topological_task_manager(const topological_task_manager&) = delete;
+    topological_task_manager(topological_task_manager&&) = delete;
+    topological_task_manager& operator=(const topological_task_manager&) = delete;
+    topological_task_manager& operator=(topological_task_manager&&) = delete;
 
     void add_task(int id, std::function<void()> task, std::vector<int> deps) {
         if (!task_graph.try_emplace(id, task_node{id, std::move(task), std::move(deps), 0}).second) {

@@ -9,6 +9,13 @@ template<typename T>
 class concurrent_queue
 {
 public:
+    concurrent_queue() = default;
+    ~concurrent_queue() = default;
+    concurrent_queue(const concurrent_queue&) = delete;
+    concurrent_queue(concurrent_queue&&) = delete;
+    concurrent_queue& operator=(const concurrent_queue&) = delete;
+    concurrent_queue& operator=(concurrent_queue&&) = delete;
+
     bool empty() const {
         std::lock_guard locked(queue_mutex);
         return queue_core.empty();
