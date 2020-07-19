@@ -16,24 +16,32 @@ public:
 
     void push(T element) {
         std::unique_lock locked(queue_mutex);
-        queue_core.push_back(std::move(element));
+        queue_core.emplace_back(std::move(element));
         locked.unlock();
         queue_cond.notify_one();
     }
 
     bool wait_and_pop(T& element) {
         std::unique_lock locked(queue_mutex);
-        queue_cond.wait(locked, [this] {
-            return !queue_core.empty();
-        });
-        element = std::move(queue_core.front());
-        queue_core.pop_front();
-        return true;
+        queue_cond.wait(locked, [this] { return !queue_core.empty() || done; });
+        return try_pop_impl(element);
     }
 
     bool try_pop(T& element) {
         std::lock_guard locked(queue_mutex);
-        if (!queue_core.empty()) {
+        return try_pop_impl(element);
+    }
+
+    void shutdown() {
+        std::unique_lock locked(queue_mutex);
+        done = true;
+        locked.unlock();
+        queue_cond.notify_all();
+    }
+
+private:
+    bool try_pop_impl(T& element) {
+        if (!queue_core.empty() && !done) {
             element = std::move(queue_core.front());
             queue_core.pop_front();
             return true;
@@ -42,9 +50,10 @@ public:
     }
 
 private:
+    bool done{false};
+    std::deque<T> queue_core;
     mutable std::mutex queue_mutex;
     std::condition_variable queue_cond;
-    std::deque<T> queue_core;
 
 }; // class concurrent_queue
 

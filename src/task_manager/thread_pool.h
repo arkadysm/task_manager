@@ -46,6 +46,7 @@ public:
 
     ~thread_pool() {
         done = true;
+        opqueue.shutdown();
     }
 
     template<typename Callable>
@@ -58,11 +59,8 @@ private:
     void operation_thread() {
         while (!done) {
             std::function<void()> operation;
-            if (opqueue.try_pop(operation)) {
+            if (opqueue.wait_and_pop(operation)) {
                 operation();
-            }
-            else {
-                std::this_thread::yield();
             }
         }
     }
