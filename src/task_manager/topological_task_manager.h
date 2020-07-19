@@ -21,6 +21,7 @@ public:
     topological_task_manager& operator=(topological_task_manager&&) = delete;
 
     void add_task(int id, std::function<void()> task, std::vector<int> deps) {
+        // TODO: investigate actual count of move actions.
         if (!task_graph.try_emplace(id, task_node{id, std::move(task), std::move(deps), 0}).second) {
             throw std::invalid_argument("task already registered");
         }
@@ -34,7 +35,7 @@ public:
         if (has_cycle())
             throw std::logic_error("cycle detected");
 
-        // Init execution graph by transposing the task graph
+        // Init execution graph by transposing the task graph.
         for (auto& [id, node] : task_graph) {
             node.indegree = node.deps.size();
             for (int dep_id : node.deps) {
@@ -43,7 +44,7 @@ public:
         }
         total_remaining = task_graph.size();
 
-        // Submit parallel tasks with zero indegree
+        // Submit parallel tasks with zero indegree.
         std::unique_lock locked(state_mutex);
         for (auto& [id, node] : task_graph) {
             if (0 == node.indegree) {
@@ -51,7 +52,7 @@ public:
             }
         }
 
-        // Wait for completion of all tasks
+        // Wait for completion of all tasks.
         done_cond.wait(locked, [this] {
             return 0 == total_remaining;
         });
@@ -74,9 +75,10 @@ private:
 
     void run_one_task(task_node& node) {
 
+        // TODO: add exception handling and propagation to run_tasks thread.
         node.task_function();
 
-        // Update execution graph and submit dependent tasks with zero indegree
+        // Update execution graph and submit dependent tasks with zero indegree.
         std::unique_lock locked(state_mutex);
         auto it = execution_graph.find(node.id);
         if (it != execution_graph.end()) {
@@ -91,7 +93,7 @@ private:
         auto remaining = --total_remaining;
         locked.unlock();
 
-        // Notify if all tasks completed
+        // Notify if all tasks completed.
         if (0 == remaining) {
             done_cond.notify_one();
         }
@@ -99,6 +101,8 @@ private:
 
     bool has_cycle() const {
 
+        // It is sequential Kahn's topological sort.
+        // A cycle can be found without transposing.
         std::unordered_map<int, unsigned> indegree;
 
         for (const auto& [id, node] : task_graph) {
