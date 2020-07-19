@@ -18,10 +18,15 @@ public:
     }
 
     void add_task(int id, std::function<void()> task, std::vector<int> deps) {
-        task_graph.try_emplace(id, task_node{id, std::move(task), std::move(deps), 0});
+        if (!task_graph.try_emplace(id, task_node{id, std::move(task), std::move(deps), 0}).second) {
+            throw std::invalid_argument("task already registered");
+        }
     }
 
     void run_tasks() {
+
+        if (has_unregistered_tasks())
+            throw std::logic_error("unregistered task detected");
 
         if (has_cycle())
             throw std::logic_error("cycle detected");
@@ -126,6 +131,17 @@ private:
         }
 
         return total != task_graph.size();
+    }
+
+    bool has_unregistered_tasks() const {
+        for (const auto& [id, node] : task_graph) {
+            for (int dep_id : node.deps) {
+                if (task_graph.find(dep_id) == task_graph.end()) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
 private:

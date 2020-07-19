@@ -111,7 +111,7 @@ TEST(topological_task_manager_test, run_parallel_both_ends_tasks)
                  result == std::vector{2,1,3,4,6,5}));
 }
 
-TEST(topological_task_manager_test, run_tasks_with_cycle)
+TEST(topological_task_manager_test, throw_with_cycle_detected)
 {
     auto task_impl = [] { };
 
@@ -124,6 +124,30 @@ TEST(topological_task_manager_test, run_tasks_with_cycle)
     task_manager.add_task(5, task_impl, {4});
     task_manager.add_task(6, task_impl, {5});
     EXPECT_THROW(task_manager.run_tasks(), std::logic_error);
+}
+
+TEST(topological_task_manager_test, throw_with_unregistered_tasks)
+{
+    auto task_impl = [] { };
+
+    thread_pool pool(std::thread::hardware_concurrency());
+    topological_task_manager task_manager(pool);
+    task_manager.add_task(1, task_impl, {});
+    task_manager.add_task(2, task_impl, {});
+    task_manager.add_task(3, task_impl, {4});
+    EXPECT_THROW(task_manager.run_tasks(), std::logic_error);
+}
+
+TEST(topological_task_manager_test, throw_with_duplicate_task)
+{
+    auto task_impl = [] { };
+
+    thread_pool pool(std::thread::hardware_concurrency());
+    topological_task_manager task_manager(pool);
+    task_manager.add_task(1, task_impl, {});
+    task_manager.add_task(2, task_impl, {});
+    EXPECT_THROW(task_manager.add_task(2, task_impl, {4}), std::logic_error);
+    task_manager.run_tasks();
 }
 
 int main(int argc, char *argv[]) {
