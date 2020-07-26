@@ -17,33 +17,41 @@ public:
     concurrent_queue& operator=(concurrent_queue&&) = delete;
 
     bool empty() const {
-        std::lock_guard locked(queue_mutex);
+        std::lock_guard locked(state_mutex);
         return queue_core.empty();
     }
 
     void push(T element) {
-        std::unique_lock locked(queue_mutex);
+        std::unique_lock locked(state_mutex);
         queue_core.emplace_back(std::move(element));
         locked.unlock();
-        queue_cond.notify_one();
+        state_cond.notify_one();
+    }
+
+    template<typename... Args>
+    void emplace(Args&&... args) {
+        std::unique_lock locked(state_mutex);
+        queue_core.emplace_back(std::forward<Args>(args)...);
+        locked.unlock();
+        state_cond.notify_one();
     }
 
     bool wait_and_pop(T& element) {
-        std::unique_lock locked(queue_mutex);
-        queue_cond.wait(locked, [this] { return !queue_core.empty() || done; });
+        std::unique_lock locked(state_mutex);
+        state_cond.wait(locked, [this] { return !queue_core.empty() || done; });
         return try_pop_impl(element);
     }
 
     bool try_pop(T& element) {
-        std::lock_guard locked(queue_mutex);
+        std::lock_guard locked(state_mutex);
         return try_pop_impl(element);
     }
 
     void shutdown() {
-        std::unique_lock locked(queue_mutex);
+        std::unique_lock locked(state_mutex);
         done = true;
         locked.unlock();
-        queue_cond.notify_all();
+        state_cond.notify_all();
     }
 
 private:
@@ -59,8 +67,8 @@ private:
 private:
     bool done{false};
     std::deque<T> queue_core;
-    mutable std::mutex queue_mutex;
-    std::condition_variable queue_cond;
+    mutable std::mutex state_mutex;
+    std::condition_variable state_cond;
 
 }; // class concurrent_queue
 

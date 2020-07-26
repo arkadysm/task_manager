@@ -57,7 +57,7 @@ public:
     template<typename Callable>
     void submit(Callable&& callable)
     {
-        opqueue.push(std::forward<Callable>(callable));
+        opqueue.emplace(std::forward<Callable>(callable));
     }
 
 private:
