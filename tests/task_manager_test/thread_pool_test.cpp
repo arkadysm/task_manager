@@ -3,6 +3,8 @@
 #include <atomic>
 #include <thread>
 
+using taskman::thread_pool;
+
 TEST(thread_pool_test, submitting_100_operations)
 {
     // TODO: Add correct waiting for tasks completion

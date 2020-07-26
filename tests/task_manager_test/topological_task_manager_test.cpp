@@ -5,6 +5,9 @@
 #include <functional>
 #include <random>
 
+using taskman::thread_pool;
+using taskman::topological_task_manager;
+
 namespace {
 std::random_device rdevice;
 std::mt19937 rengine(rdevice());

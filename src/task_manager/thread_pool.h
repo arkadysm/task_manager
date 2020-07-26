@@ -8,6 +8,8 @@
 #include <thread>
 #include <mutex>
 
+namespace taskman {
+
 class join_threads
 {
 public:
@@ -77,5 +79,7 @@ private:
     join_threads joiner;
 
 }; // class thread_pool
+
+} // namespace taskman
 
 #endif // TASK_MANAGER_THREAD_POOL_H

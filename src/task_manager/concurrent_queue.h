@@ -5,6 +5,8 @@
 #include <mutex>
 #include <condition_variable>
 
+namespace taskman {
+
 template<typename T>
 class concurrent_queue
 {
@@ -71,5 +73,7 @@ private:
     std::condition_variable state_cond;
 
 }; // class concurrent_queue
+
+} // namespace taskman
 
 #endif // TASK_MANAGER_CONCURRENT_QUEUE_H

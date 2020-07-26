@@ -7,6 +7,8 @@
 #include <functional>
 #include <stdexcept>
 
+namespace taskman {
+
 class topological_task_manager
 {
 public:
@@ -160,5 +162,7 @@ private:
     std::unordered_map<int, std::vector<int>> execution_graph;
 
 }; // class topological_task_manager
+
+} // namespace taskman
 
 #endif // TASK_MANAGER_TOPOLOGICAL_TASK_MANAGER_H
