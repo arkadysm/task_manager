@@ -40,7 +40,7 @@ public:
         // Init execution graph by transposing the task graph.
         for (auto& [id, node] : task_graph) {
             node.indegree = node.deps.size();
-            for (int dep_id : node.deps) {
+            for (const int dep_id : node.deps) {
                 execution_graph[dep_id].emplace_back(id);
             }
         }
@@ -77,14 +77,15 @@ private:
 
     void run_one_task(task_node& node) {
 
-        // TODO: add exception handling and propagation to run_tasks thread.
+        // TODO: add exception handling and propagate it to run_tasks thread.
+
         node.task_function();
 
         // Update execution graph and submit dependent tasks with zero indegree.
         std::unique_lock locked(state_mutex);
-        auto it = execution_graph.find(node.id);
+        const auto it = execution_graph.find(node.id);
         if (it != execution_graph.end()) {
-            for (int dep_id : it->second) {
+            for (const int dep_id : it->second) {
                 auto& dep_node = task_graph[dep_id];
                 if (0 == --dep_node.indegree) {
                     submit_one_task(dep_node);
@@ -92,10 +93,10 @@ private:
             }
         }
         execution_graph.erase(node.id);
-        auto remaining = --total_remaining;
+        const auto remaining = --total_remaining;
         locked.unlock();
 
-        // Notify if all tasks completed.
+        // Notify if all tasks have been completed.
         if (0 == remaining) {
             done_cond.notify_one();
         }
@@ -103,13 +104,13 @@ private:
 
     bool has_cycle() const {
 
-        // It is sequential Kahn's topological sort.
-        // A cycle can be found without transposing.
+        // It is Kahn's topological sort.
+        // A cycle can be found without transposing the graph.
         std::unordered_map<int, unsigned> indegree;
 
         for (const auto& [id, node] : task_graph) {
             indegree[id];
-            for (int dep_id : node.deps) {
+            for (const int dep_id : node.deps) {
                 ++indegree[dep_id];
             }
         }
@@ -131,7 +132,7 @@ private:
 
             const auto it = task_graph.find(id);
             if (task_graph.end() != it) {
-                for (int dep_id : it->second.deps) {
+                for (const int dep_id : it->second.deps) {
                     if (0 == --indegree[dep_id]) {
                         next.emplace_back(dep_id);
                     }
@@ -144,7 +145,7 @@ private:
 
     bool has_unregistered_tasks() const {
         for (const auto& [id, node] : task_graph) {
-            for (int dep_id : node.deps) {
+            for (const int dep_id : node.deps) {
                 if (task_graph.find(dep_id) == task_graph.end()) {
                     return true;
                 }
