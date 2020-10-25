@@ -9,106 +9,99 @@
 
 namespace taskman {
 
-class topological_task_manager
+class TopologicalTaskManager
 {
 public:
-    topological_task_manager(thread_pool& pool)
-    : execution_pool(pool) {
+    TopologicalTaskManager(ThreadPool& threadPool): m_threadPool(threadPool) {
     }
     
-    ~topological_task_manager() = default;
-    topological_task_manager(const topological_task_manager&) = delete;
-    topological_task_manager(topological_task_manager&&) = delete;
-    topological_task_manager& operator=(const topological_task_manager&) = delete;
-    topological_task_manager& operator=(topological_task_manager&&) = delete;
-
-    void add_task(int id, std::function<void()> task, std::vector<int> deps) {
+    void addTask(int id, std::function<void()> task, std::vector<int> deps) {
         // TODO: investigate actual count of move actions.
-        if (!task_graph.try_emplace(id, task_node{id, std::move(task), std::move(deps), 0}).second) {
+        if (!m_taskGraph.try_emplace(id, TaskNode{id, std::move(task), std::move(deps), 0}).second) {
             throw std::invalid_argument("task already registered");
         }
     }
 
-    void run_tasks() {
+    void runTasks() {
 
-        if (has_unregistered_tasks())
+        if (hasUnregisteredTasks())
             throw std::logic_error("unregistered task detected");
 
-        if (has_cycle())
+        if (hasCycleDependency())
             throw std::logic_error("cycle detected");
 
         // Init execution graph by transposing the task graph.
-        for (auto& [id, node] : task_graph) {
+        for (auto& [id, node] : m_taskGraph) {
             node.indegree = node.deps.size();
             for (const int dep_id : node.deps) {
-                execution_graph[dep_id].emplace_back(id);
+                m_executionGraph[dep_id].emplace_back(id);
             }
         }
-        total_remaining = task_graph.size();
+        m_totalRemaining = m_taskGraph.size();
 
         // Submit parallel tasks with zero indegree.
-        std::unique_lock locked(state_mutex);
-        for (auto& [id, node] : task_graph) {
+        std::unique_lock locked(m_stateMutex);
+        for (auto& [id, node] : m_taskGraph) {
             if (0 == node.indegree) {
-                submit_one_task(node);
+                submitOneTask(node);
             }
         }
 
         // Wait for completion of all tasks.
-        done_cond.wait(locked, [this] {
-            return 0 == total_remaining;
+        m_doneCondition.wait(locked, [this] {
+            return 0 == m_totalRemaining;
         });
     }
 
 private:
-    struct task_node
+    struct TaskNode
     {
         int id;
-        std::function<void()> task_function;
+        std::function<void()> taskFunction;
         std::vector<int> deps;
         int indegree;        
     };
 
-    void submit_one_task(task_node& node) {
-        execution_pool.submit([this, &node] {
-            run_one_task(node);
+    void submitOneTask(TaskNode& node) {
+        m_threadPool.submit([this, &node] {
+            runOneTask(node);
         });
     }
 
-    void run_one_task(task_node& node) {
+    void runOneTask(TaskNode& node) {
 
         // TODO: add exception handling and propagate it to run_tasks thread.
 
-        node.task_function();
+        node.taskFunction();
 
         // Update execution graph and submit dependent tasks with zero indegree.
-        std::unique_lock locked(state_mutex);
-        const auto it = execution_graph.find(node.id);
-        if (it != execution_graph.end()) {
+        std::unique_lock locked(m_stateMutex);
+        const auto it = m_executionGraph.find(node.id);
+        if (it != m_executionGraph.end()) {
             for (const int dep_id : it->second) {
-                auto& dep_node = task_graph[dep_id];
+                auto& dep_node = m_taskGraph[dep_id];
                 if (0 == --dep_node.indegree) {
-                    submit_one_task(dep_node);
+                    submitOneTask(dep_node);
                 }
             }
         }
-        execution_graph.erase(node.id);
-        const auto remaining = --total_remaining;
+        m_executionGraph.erase(node.id);
+        const auto remaining = --m_totalRemaining;
         locked.unlock();
 
         // Notify if all tasks have been completed.
         if (0 == remaining) {
-            done_cond.notify_one();
+            m_doneCondition.notify_one();
         }
     }
 
-    bool has_cycle() const {
+    bool hasCycleDependency() const {
 
         // It is Kahn's topological sort.
         // A cycle can be found without transposing the graph.
         std::unordered_map<int, unsigned> indegree;
 
-        for (const auto& [id, node] : task_graph) {
+        for (const auto& [id, node] : m_taskGraph) {
             indegree[id];
             for (const int dep_id : node.deps) {
                 ++indegree[dep_id];
@@ -116,7 +109,7 @@ private:
         }
 
         std::vector<int> next;
-        next.reserve(task_graph.size());
+        next.reserve(m_taskGraph.size());
         for (const auto& [id, remaining] : indegree) {
             if (0 == remaining) {
                 next.emplace_back(id);
@@ -130,8 +123,8 @@ private:
 
             ++total;
 
-            const auto it = task_graph.find(id);
-            if (task_graph.end() != it) {
+            const auto it = m_taskGraph.find(id);
+            if (m_taskGraph.end() != it) {
                 for (const int dep_id : it->second.deps) {
                     if (0 == --indegree[dep_id]) {
                         next.emplace_back(dep_id);
@@ -140,13 +133,13 @@ private:
             }
         }
 
-        return total != task_graph.size();
+        return total != m_taskGraph.size();
     }
 
-    bool has_unregistered_tasks() const {
-        for (const auto& [id, node] : task_graph) {
+    bool hasUnregisteredTasks() const {
+        for (const auto& [id, node] : m_taskGraph) {
             for (const int dep_id : node.deps) {
-                if (task_graph.find(dep_id) == task_graph.end()) {
+                if (m_taskGraph.find(dep_id) == m_taskGraph.end()) {
                     return true;
                 }
             }
@@ -155,14 +148,14 @@ private:
     }
 
 private:
-    thread_pool& execution_pool;
-    std::mutex state_mutex;
-    std::condition_variable done_cond;
-    unsigned total_remaining{0};
-    std::unordered_map<int, task_node> task_graph;
-    std::unordered_map<int, std::vector<int>> execution_graph;
+    ThreadPool& m_threadPool;
+    std::mutex m_stateMutex;
+    std::condition_variable m_doneCondition;
+    unsigned m_totalRemaining{0};
+    std::unordered_map<int, TaskNode> m_taskGraph;
+    std::unordered_map<int, std::vector<int>> m_executionGraph;
 
-}; // class topological_task_manager
+}; // class TopologicalTaskManager
 
 } // namespace taskman
 

@@ -3,21 +3,19 @@
 #include <atomic>
 #include <thread>
 
-using taskman::thread_pool;
+using taskman::ThreadPool;
 
 TEST(thread_pool_test, submitting_100_operations)
 {
-    // TODO: Add correct waiting for tasks completion
     std::atomic<int> counter = 0;
     {
-        thread_pool pool(std::thread::hardware_concurrency());
+        ThreadPool pool(std::thread::hardware_concurrency());
         for (int i = 0; i < 100; ++i) {
             pool.submit([&counter]{
                 ++counter;
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             });
         }
-        std::this_thread::sleep_for(std::chrono::seconds(2));
     }
     EXPECT_TRUE(counter == 100);
 }

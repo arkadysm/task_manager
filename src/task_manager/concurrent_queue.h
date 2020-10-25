@@ -8,71 +8,33 @@
 namespace taskman {
 
 template<typename T>
-class concurrent_queue
+class ConcurrentQueue
 {
 public:
-    concurrent_queue() = default;
-    ~concurrent_queue() = default;
-    concurrent_queue(const concurrent_queue&) = delete;
-    concurrent_queue(concurrent_queue&&) = delete;
-    concurrent_queue& operator=(const concurrent_queue&) = delete;
-    concurrent_queue& operator=(concurrent_queue&&) = delete;
-
-    bool empty() const {
-        std::lock_guard locked(state_mutex);
-        return queue_core.empty();
-    }
-
-    void push(T element) {
-        std::unique_lock locked(state_mutex);
-        queue_core.emplace_back(std::move(element));
-        locked.unlock();
-        state_cond.notify_one();
-    }
-
     template<typename... Args>
     void emplace(Args&&... args) {
-        std::unique_lock locked(state_mutex);
-        queue_core.emplace_back(std::forward<Args>(args)...);
-        locked.unlock();
-        state_cond.notify_one();
-    }
-
-    bool wait_and_pop(T& element) {
-        std::unique_lock locked(state_mutex);
-        state_cond.wait(locked, [this] { return !queue_core.empty() || done; });
-        return try_pop_impl(element);
-    }
-
-    bool try_pop(T& element) {
-        std::lock_guard locked(state_mutex);
-        return try_pop_impl(element);
-    }
-
-    void shutdown() {
-        std::unique_lock locked(state_mutex);
-        done = true;
-        locked.unlock();
-        state_cond.notify_all();
-    }
-
-private:
-    bool try_pop_impl(T& element) {
-        if (!queue_core.empty() && !done) {
-            element = std::move(queue_core.front());
-            queue_core.pop_front();
-            return true;
+        // Awakened thread might sleep again, prevent it
+        {
+            std::lock_guard locked(m_stateMutex);
+            m_queue.emplace_back(std::forward<Args>(args)...);
         }
-        return false;
+        m_notEmptyCondition.notify_one();
+    }
+
+    T pop() {
+        std::unique_lock locked(m_stateMutex);
+        m_notEmptyCondition.wait(locked, [this] { return !m_queue.empty(); });
+        T element = std::move(m_queue.front());
+        m_queue.pop_front();
+        return element;
     }
 
 private:
-    bool done{false};
-    std::deque<T> queue_core;
-    mutable std::mutex state_mutex;
-    std::condition_variable state_cond;
+    std::deque<T> m_queue;
+    mutable std::mutex m_stateMutex;
+    std::condition_variable m_notEmptyCondition;
 
-}; // class concurrent_queue
+}; // class ConcurrentQueue
 
 } // namespace taskman
 
