@@ -16,8 +16,7 @@ public:
     }
     
     void addTask(int id, std::function<void()> task, std::vector<int> deps) {
-        // TODO: investigate actual count of move actions.
-        if (!m_taskGraph.try_emplace(id, TaskNode{id, std::move(task), std::move(deps), 0}).second) {
+        if (!m_taskGraph.try_emplace(id, id, std::move(task), std::move(deps)).second) {
             throw std::invalid_argument("task already registered");
         }
     }
@@ -56,10 +55,14 @@ public:
 private:
     struct TaskNode
     {
+        TaskNode() = default;
+        TaskNode(int id, std::function<void()>&& f, std::vector<int>&& d)
+        : id{id}, taskFunction(std::move(f)), deps(std::move(d)) {}
+
         int id;
         std::function<void()> taskFunction;
         std::vector<int> deps;
-        int indegree;        
+        int indegree{0};
     };
 
     void submitOneTask(TaskNode& node) {
